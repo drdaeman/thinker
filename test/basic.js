@@ -102,7 +102,7 @@ describe('commands', function () {
       yield sr.db(testSrcDB).table(testTable).insert(testDataset).run()
 
       let logStub = this.sinon.stub(console, 'log')
-      yield * sync(Object.assign(options, {pickTables: [testTable]}))
+      yield * sync(Object.assign({}, options, {pickTables: [testTable]}))
       logStub.restore()
 
       const srcData = yield sr.db(testSrcDB).table(testTable)
@@ -129,7 +129,7 @@ describe('commands', function () {
       assert.notEqual(dstDataPre.length, 0)
 
       let logStub = this.sinon.stub(console, 'log')
-      yield * sync(Object.assign(options, {pickTables: [testTable]}))
+      yield * sync(Object.assign({}, options, {pickTables: [testTable]}))
       logStub.restore()
 
       const srcData = yield sr.db(testSrcDB).table(testTable)
