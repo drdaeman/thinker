@@ -22,7 +22,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "nyc mocha"
+    "test": "nyc --reporter=lcov --reporter=text mocha"
   },
   "dependencies": {
     "bluebird": "^3.4.1",
