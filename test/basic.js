@@ -4,7 +4,6 @@ const r = require('rethinkdbdash')({silent: true})
 const clone = require('../lib/commands/clone')
 const sync = require('../lib/commands/sync')
 const inquirer = require('inquirer')
-const process = require('process')
 
 require('mocha-generators').install()
 require('mocha-sinon')
@@ -66,13 +65,10 @@ describe('commands', function () {
   describe('sync', function () {
     const testSrcDB = 'test_thinker_' + random()
     const testDstDB = 'test_thinker_' + random()
-    const testTable = 'test1'
 
     before(function * () {
       yield r.connect()
       yield r.dbCreate(testSrcDB).run()
-      yield r.db(testSrcDB).tableCreate(testTable).run()
-      yield r.db(testSrcDB).table(testTable).insert(testDataset)
       yield r.dbCreate(testDstDB).run()
     })
 
@@ -83,10 +79,13 @@ describe('commands', function () {
     })
 
     it(`should correctly sync test table`, function * () {
+      const testTable = 'test1'
+
+      yield r.db(testSrcDB).tableCreate(testTable).run()
+      yield r.db(testSrcDB).table(testTable).insert(testDataset).run()
+
       let logStub = this.sinon.stub(console, 'log')
-      let outStub = this.sinon.stub(process.stdout, 'write')
-      yield * sync({sourceDB: testSrcDB, targetDB: testDstDB})
-      outStub.restore()
+      yield * sync({sourceDB: testSrcDB, targetDB: testDstDB, pickTables: [testTable], noProgress: true})
       logStub.restore()
 
       const srcData = yield r.db(testSrcDB).table(testTable)
@@ -95,7 +94,34 @@ describe('commands', function () {
         .orderBy({index: 'id'}).run({timeFormat: 'raw'})
 
       assert.deepEqual(srcData, dstData)
-      console.log(srcData)
+      assert.strictEqual(srcData.length, testDataset.length)
+    })
+
+    it(`should delete any extra records`, function * () {
+      const testTable = 'test2'
+
+      yield r.db(testSrcDB).tableCreate(testTable).run()
+      yield r.db(testSrcDB).table(testTable).delete().run()
+      yield r.db(testDstDB).tableCreate(testTable).run()
+      yield r.db(testDstDB).table(testTable).insert(testDataset).run()
+
+      const srcDataPre = yield r.db(testSrcDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      const dstDataPre = yield r.db(testDstDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      assert.strictEqual(srcDataPre.length, 0)
+      assert.notEqual(dstDataPre.length, 0)
+
+      let logStub = this.sinon.stub(console, 'log')
+      yield * sync({sourceDB: testSrcDB, targetDB: testDstDB, pickTables: [testTable], noProgress: true})
+      logStub.restore()
+
+      const srcData = yield r.db(testSrcDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      const dstData = yield r.db(testDstDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      assert.strictEqual(srcData.length, 0)
+      assert.strictEqual(dstData.length, 0)
     })
 
     after(function * () {
