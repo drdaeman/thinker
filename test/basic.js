@@ -49,7 +49,25 @@ describe('commands', function () {
       this.sinon.stub(inquirer, 'prompt').resolves({confirmed: true})
     })
 
-    it(`should correctly clone test table`, function * () {
+    it(`should correctly clone test table on the same server`, function * () {
+      const testTable = 'test_' + random()
+
+      yield sr.db(testSrcDB).tableCreate(testTable).run()
+      yield sr.db(testSrcDB).table(testTable).insert(testDataset).run()
+
+      let logStub = this.sinon.stub(console, 'log')
+      yield * clone(Object.assign({}, options, {th: srcHost}))
+      logStub.restore()
+
+      const srcData = yield sr.db(testSrcDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      const dstData = yield sr.db(testDstDB).table(testTable)
+        .orderBy({index: 'id'}).run({timeFormat: 'raw'})
+      assert.deepEqual(srcData, dstData)
+      assert.strictEqual(srcData.length, testDataset.length)
+    })
+
+    it(`should correctly clone test table over the network`, function * () {
       const testTable = 'test_' + random()
 
       yield sr.db(testSrcDB).tableCreate(testTable).run()
