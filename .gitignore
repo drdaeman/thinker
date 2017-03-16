@@ -1,3 +1,4 @@
 node_modules
 ignored_files
 .nyc_output
+coverage
